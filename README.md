@@ -1,6 +1,6 @@
-# 🔐 AuthSphere
+# 🔓 AuthSphere Client
 
-A centralized **Identity Provider (IdP) and OAuth 2.0 Authorization Server** built with Spring Boot and Spring Security. AuthSphere provides authentication and authorization for applications using **OAuth 2.0, OpenID Connect (OIDC), Authorization Code Flow, PKCE, JWTs, and RSA-based signing**, enabling Single Sign-On (SSO) across multiple client applications.
+A sample **OAuth 2.0 / OpenID Connect client application** built with Spring Boot and Spring Security. AuthSphere Client demonstrates how a real-world application delegates authentication to the **AuthSphere Identity Provider**, using the OAuth 2.0 Authorization Code Flow with PKCE instead of implementing its own login system.
 
 ## 🚀 Tech Stack
 
@@ -8,32 +8,24 @@ A centralized **Identity Provider (IdP) and OAuth 2.0 Authorization Server** bui
 |---|---|
 | Java | Programming language |
 | Spring Boot | Application framework |
-| Spring Security | Security framework |
-| Spring Authorization Server | OAuth 2.0 / OIDC authorization server |
+| Spring Security | OAuth2 Client / login integration |
 | OAuth 2.0 | Authorization protocol |
 | OpenID Connect | Authentication / identity layer |
-| JWT | Token format |
-| RSA | JWT signing |
-| PostgreSQL | Persistent storage |
-| JPA / Hibernate | Database access |
 | Maven | Build and dependency management |
 
 ## ✨ Features
 
-- 🏢 **Centralized Identity Provider** - single source of truth for authentication
-- 🔑 **OAuth 2.0 Authorization Code Flow** - industry-standard authorization
-- 🪪 **OpenID Connect (OIDC)** - identity layer on top of OAuth 2.0
-- 🛡️ **PKCE Support** - protects authorization codes from interception
-- 🔏 **JWT Access & ID Tokens** - signed with RSA public/private key pairs
-- 🌐 **Single Sign-On (SSO)** - one login across multiple applications
-- 📋 **OAuth 2.0 Client Registration** - manage registered client apps
-- 🔎 **JWK Set & OIDC Discovery Endpoints** - standards-compliant metadata
-- 🗄️ **PostgreSQL Persistence** - users and client data storage
+- 🔐 **Delegated Authentication** - no local login system, no password handling
+- 🌐 **OAuth 2.0 Login** - integrates with Spring Security's OAuth2 Client
+- 🪪 **OIDC Identity** - reads authenticated user info from the ID Token
+- 🎟️ **Session Management** - authenticated session created after token exchange
+- 🔗 **SSO-ready** - works alongside other apps registered with AuthSphere
+- 🛡️ **PKCE Support** - secure authorization code exchange
 
 ## 📂 Project Structure
 
 ```
-AuthSphere/
+AuthSphere-Client/
 │
 ├── src/
 │   ├── main/
@@ -61,40 +53,39 @@ AuthSphere/
 ### Prerequisites
 
 - Java (JDK 17+ recommended)
-- PostgreSQL
 - Maven (or use the included `mvnw` wrapper)
+- A running instance of **[AuthSphere](#)** (the Identity Provider)
 
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/riyasaran12/AuthSphere.git
-cd AuthSphere
+git clone https://github.com/riyasaran12/AuthSphere-Client.git
+cd AuthSphere-Client
 ```
 
-### 2. Configure PostgreSQL
+### 2. Configure the OAuth2 client
 
-Create the database:
-
-```sql
-CREATE DATABASE authsphere;
-```
-
-Configure the credentials in `src/main/resources/application.properties`:
+Configure the client registration in `src/main/resources/application.properties`:
 
 ```properties
-spring.datasource.url=jdbc:postgresql://localhost:5432/authsphere
-spring.datasource.username=<username>
-spring.datasource.password=<password>
+spring.security.oauth2.client.registration.authsphere.client-id=authsphere-client
+spring.security.oauth2.client.registration.authsphere.client-secret=<client-secret>
+spring.security.oauth2.client.registration.authsphere.scope=openid,profile
+spring.security.oauth2.client.registration.authsphere.redirect-uri=http://localhost:8080/login/oauth2/code/authsphere
+spring.security.oauth2.client.registration.authsphere.authorization-grant-type=authorization_code
 
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=true
+spring.security.oauth2.client.provider.authsphere.issuer-uri=http://localhost:9000
 
-server.port=9000
+server.port=8080
 ```
 
-> ⚠️ Do not commit real passwords, private keys, client secrets, or other sensitive credentials. Use environment variables or a secure secret-management mechanism for production.
+> ⚠️ Do not commit real client secrets or other sensitive credentials. Use environment variables or a secure secret-management mechanism for production.
 
-### 3. Start AuthSphere
+### 3. Start AuthSphere (the Identity Provider) first
+
+AuthSphere must be running on `http://localhost:9000` before starting the client.
+
+### 4. Start AuthSphere Client
 
 **macOS/Linux:**
 ```bash
@@ -106,39 +97,31 @@ server.port=9000
 mvnw.cmd spring-boot:run
 ```
 
-AuthSphere starts on `http://localhost:9000`
+AuthSphere Client starts on `http://localhost:8080`
 
-## 🔗 OAuth 2.0 Endpoints
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/oauth2/authorize` | GET | Starts the authorization flow |
-| `/oauth2/token` | POST | Exchanges an authorization code for tokens |
-| `/oauth2/jwks` | GET | Public keys (JWK Set) for JWT verification |
-| `/.well-known/openid-configuration` | GET | OpenID Connect discovery document |
-
-## 🏗️ Architecture
-
-Applications delegate authentication to AuthSphere instead of implementing their own login systems:
+## 🔄 Authentication Flow
 
 ```
-User → Client Application (:8080) → AuthSphere IdP (:9000) → PostgreSQL / RSA Keys
+User → GET / (client) → not authenticated
+     → redirected to AuthSphere /oauth2/authorize
+     → user authenticates with AuthSphere
+     → redirected back with authorization code
+     → client exchanges code + PKCE verifier at /oauth2/token
+     → AuthSphere issues Access Token + ID Token
+     → client creates authenticated session
 ```
-
-AuthSphere authenticates the user and issues an authorization code, which the client exchanges (server-to-server, with PKCE verification) for an access token and ID token.
 
 ## 🔑 Key Concepts
 
-- Authorization Code Flow
+- OAuth 2.0 Authorization Code Flow
+- OpenID Connect login
 - Proof Key for Code Exchange (PKCE)
-- Access Tokens & ID Tokens
-- RSA public/private key JWT signing
-- Client Registration
-- Centralized Authentication & Token-based Authorization
+- Spring Security `oauth2Login`
+- Token-based authenticated sessions
 
 ## 🔗 Related Repository
 
-The corresponding OAuth 2.0 / OpenID Connect client application is **[AuthSphere-Client](#)**, which communicates with this Identity Provider using OAuth 2.0 and OpenID Connect.
+This client depends on **[AuthSphere](#)**, the Identity Provider and Authorization Server that issues tokens and authenticates users.
 
 ## 📄 License
 
@@ -146,4 +129,4 @@ ISC
 
 ## 🚧 Status
 
-This project is under active development. Current focus: Identity Provider setup, OAuth 2.0 Authorization Code Flow, OIDC authentication, PKCE, JWT issuance, and integration with the AuthSphere Client.
+This project is under active development, focused on demonstrating OAuth2 login integration against the AuthSphere Identity Provider.
